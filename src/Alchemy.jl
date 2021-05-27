@@ -5,17 +5,15 @@ using GLMakie: GLFW, to_native
 using Makie
 
 include("Atoms.jl")
-include("Render.jl")
+include("Mouse.jl")
 
 function run(filename::String)
-    E = Ensamble(read_xyz(filename))
+    E = Ensamble(filename)
     run(E)
 end
 
 function run(E::Ensamble=Ensamble())
     glfw_window = to_native(display(E.scene))
-
-    draw!(E)
 
     on(E.scene.events.keyboardbutton) do event
         if event.key == Keyboard.escape
@@ -28,13 +26,12 @@ function run(E::Ensamble=Ensamble())
 
     on(events(E.scene).mousebutton, priority=Int8(20)) do event
         if ispressed(E.scene, Mouse.left)
-            pos = mouseposition(E.scene)
-            A = Atom("H", pos..., 0.0f0)
-            push!(E, A)
-            draw!(E)
+            nothing
         elseif ispressed(E.scene, Mouse.right)
-            obj = mouse_selection(E.scene)
-            delete!(E, obj[1])
+            A = atom_under_mouse(E)
+            if A !== nothing
+                delete!(E, A)
+            end
         else
             nothing
         end
@@ -43,6 +40,5 @@ function run(E::Ensamble=Ensamble())
     
     E.scene
 end
-
 
 end # module

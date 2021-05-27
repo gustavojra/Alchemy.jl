@@ -1,6 +1,5 @@
 using Colors
-
-import Base: push!
+import Base: delete!
 
 export Atom
 export Bond
@@ -9,62 +8,60 @@ export Ensamble
 include("Constants.jl")
 
 struct Atom 
-    sphere::Sphere{Float32}
+    center::Point3f0
     symbol::String
+    plot::AbstractPlot
 end
-
-# Alias
-Atoms = Vector{Atom}
 
 struct Bond
     atom1::Atom
     atom2::Atom
-    Bond(A1, A2) = A1 != A2 ? new(A1, A2) : error("Cannot create a bound withina single atom")
-end
-
-# Alias
-Bonds = Vector{Bond}
-
-function Atom(S::String, x::T, y::T, z::T) where T <: Number
-    r = get_atom_radius(S)
-    return Atom(Sphere(Point3f0(x,y,z), r), S)
+    plot::Arrows
+    Bond(A1, A2, p) = A1 != A2 ? new(A1, A2, p) : error("Cannot create a bound withina single atom")
 end
 
 struct Ensamble 
     scene::Scene
-    atoms::Atoms
-    bonds::Bonds
-    drawn_atoms::Vector{Bool}
-    drawn_bonds::Vector{Bool}
+    atoms::Vector{Atom}
+    bonds::Vector{Bond}
 end
 
-function Ensamble(atoms::Atoms = Atoms())
-    s = Scene()
-    bonds = find_bonds(atoms)
-    drawn_atoms = [false for i = eachindex(atoms)]
-    drawn_bonds = [false for i = eachindex(bonds)]
-    return Ensamble(s, atoms, bonds, drawn_atoms, drawn_bonds)
-end
-
-function push!(E::Ensamble, A::Atom)
+function Atom(E::Ensamble, S::String, x::T, y::T, z::T) where T <: Number
+    r = get_atom_radius(S)
+    center = Point3f0(x,y,z)
+    sphere = Sphere(center, r)
+    plot = mesh!(E.scene, sphere, show_axis=false, color=atom_color[S])
+    A = Atom(center, S, plot)
     push!(E.atoms, A)
-    push!(E.drawn_atoms, false)
+    return A
 end
 
-function push!(E::Ensamble, A::Bond)
-    push!(E.bonds, A)
-    push!(E.drawn_bonds, false)
+function Bond(E::Ensamble, i::Int, j::Int)
+    A1, A2 = E.atoms[i], E.atoms[j]
+    xyz = [A1.center]
+    uvw = [A2.center - A1.center]
+    plot = arrows!(E.scene, xyz, uvw, linewidth=0.1, arrowsize=0.0, linecolor=stegeman)
+    B = Bond(E.atoms[i], E.atoms[j], plot)
+    push!(E.bonds, B)
+    return B
 end
 
-function bind_atoms(E::Ensamble, i::Int, j::Int)
-    A1 = E.atoms[i]
-    A2 = E.atoms[j]
-    push!(E, Bond(A1, A2))
+
+function Ensamble()
+    s = Scene()
+    atoms=Vector{Atom}()
+    bonds=Vector{Bond}()
+    Ensamble(s,atoms,bonds)
 end
 
-function read_xyz(filename)
+function Ensamble(filename::String)
+    E = Ensamble()
+    read_xyz_to!(E, filename)
+    find_bonds!(E)
+    return E
+end
 
-    out = Atom[]
+function read_xyz_to!(E::Ensamble, filename)
     for l = eachline(filename)
         m = match(XYZ_REGEX, l)
         if m !== nothing
@@ -72,35 +69,71 @@ function read_xyz(filename)
             xyz = m.captures[2:end]
             @assert length(xyz) == 3
             xyz = parse.(Float32, xyz)
-            push!(out, Atom(S, xyz...))
+            Atom(E, S, xyz...)
         end
     end
-    return out
 end
 
-function find_bonds(As::Atoms)
+function find_bonds!(E::Ensamble)
 
-    out = Bond[]
-    for i in eachindex(As)
-        r1 = get_center(As[i])
-        for j in (i+1):length(As)
-            r2 = get_center(As[j])
+    for i in eachindex(E.atoms)
+        r1 = E.atoms[i].center
+        for j in (i+1):length(E.atoms)
+            r2 = E.atoms[j].center
             d = √sum((r1 .- r2).^2)
             if d < 1.55
-                push!(out, Bond(As[i], As[j]))
+                Bond(E, i, j)
             end
         end
     end
-    return out
 end
 
-delete!(E::Ensamble, n::Nothing) = nothing
-function delete!(E::Ensamble, p::T) where T <: AbstractPlot
-    i, = findall(x->x==p, E.scene.plots)
-    delete!(E.scene, p)
-    deleteat!(E.atoms, i)
-    deleteat!(E.drawn_atoms, i)
+function delete!(E::Ensamble, A::Atom)
+
+    # Remove atom from ensamble
+    filter!(a -> a != A, E.atoms)
+
+    # Delete any bonds involving the atom
+    let to_be_deleted = Vector{Bond}()
+        # Mark atoms for deletion
+        for B in E.bonds
+             if A in (B.atom1, B.atom2)
+                 push!(to_be_deleted, B)
+             end
+        end
+        # Delete them
+        for B in to_be_deleted
+            delete!(E, B)
+        end
+    end
+
+    scene = E.scene
+    plot = A.plot
+    # Copied from Makie.jl source
+    len = length(scene.plots)
+    filter!(x -> x !== plot, scene.plots)
+    if length(scene.plots) == len
+        error("$(typeof(plot)) not in scene!")
+    end
+    for screen in scene.current_screens
+        delete!(screen, scene, plot)
+    end
 end
 
-get_center(A::Atom) = A.sphere.center
-get_radius(A::Atom) = A.sphere.r
+function delete!(E::Ensamble, B::Bond)
+    # Remove Bond from ensamble
+    filter!(b -> b != B, E.bonds)
+
+    scene = E.scene
+    plot = B.plot
+
+    # Copied from Makie.jl source
+    len = length(scene.plots)
+    filter!(x -> x !== plot, scene.plots)
+    if length(scene.plots) == len
+        error("$(typeof(plot)) not in scene!")
+    end
+    for screen in scene.current_screens
+        delete!(screen, scene, plot)
+    end
+end
