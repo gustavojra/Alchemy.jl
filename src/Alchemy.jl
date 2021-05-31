@@ -25,8 +25,18 @@ function run(E::Ensamble=Ensamble())
     end
 
     on(events(E.scene).mousebutton, priority=Int8(20)) do event
-        if ispressed(E.scene, Mouse.left)
-            nothing
+        # Event involving left mouse
+        if event.button == Mouse.left
+            # On click
+            if event.action == Mouse.press
+                nothing
+            # On release
+            else
+                A = atom_under_mouse(E)
+                if A === nothing
+                    create_atom_under_mouse(E)
+                end
+            end
         elseif ispressed(E.scene, Mouse.right)
             A = atom_under_mouse(E)
             if A !== nothing
