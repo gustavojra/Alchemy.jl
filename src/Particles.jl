@@ -17,13 +17,15 @@ struct Bond
     atom1::Atom
     atom2::Atom
     plot::Arrows
-    Bond(A1, A2, p) = A1 != A2 ? new(A1, A2, p) : error("Cannot create a bound withina single atom")
+    Bond(A1, A2, p) = A1 != A2 ? new(A1, A2, p) : error("Cannot create a bound within a single atom")
 end
 
-struct Ensamble 
+mutable struct Ensamble
     scene::Scene
+    mode::AbstractMode
     atoms::Vector{Atom}
     bonds::Vector{Bond}
+    selected::Vector{Int}
 end
 
 function Atom(E::Ensamble, S::String, x::T, y::T, z::T) where T <: Number
@@ -46,12 +48,23 @@ function Bond(E::Ensamble, i::Int, j::Int)
     return B
 end
 
+function Bond(E::Ensamble)
+    A1, A2 = E.atoms[end-1], E.atoms[end]
+    xyz = [A1.center]
+    uvw = [A2.center - A1.center]
+    plot = arrows!(E.scene, xyz, uvw, linewidth=0.1, arrowsize=0.0, linecolor=stegeman)
+    B = Bond(E.atoms[end-1], E.atoms[end], plot)
+    push!(E.bonds, B)
+    return B
+end
 
 function Ensamble()
     s = Scene()
+    m = SelectionMode()
     atoms=Vector{Atom}()
     bonds=Vector{Bond}()
-    Ensamble(s,atoms,bonds)
+    selected=Vector{Int}()
+    Ensamble(s, m, atoms, bonds, selected)
 end
 
 function Ensamble(filename::String)
@@ -135,5 +148,85 @@ function delete!(E::Ensamble, B::Bond)
     end
     for screen in scene.current_screens
         delete!(screen, scene, plot)
+    end
+end
+
+function isselected(E::Ensamble, A::Atom)
+    for i = eachindex(E.atoms)
+        if A === E.atoms[i]
+            if i in E.selected
+                return true
+            else
+                return false
+            end
+        end
+    end
+    @error "Atom not found"
+end
+
+function isselected(E::Ensamble, B::Bond)
+    for i = eachindex(E.bonds)
+        if B === E.bonds[i]
+            if -i in E.selected
+                return true
+            else
+                return false
+            end
+        end
+    end
+    @error "Bond not found"
+end
+
+function select!(E::Ensamble, A::Atom)
+    if !isselected(E, A)
+        for i = eachindex(E.atoms)
+            if A === E.atoms[i]
+                push!(E.selected, i)
+                A.plot.attributes[:color] = (:lightgoldenrod1, 0.90)
+                A.plot.attributes[:shininess] = 70.0f0
+                A.plot.attributes[:diffuse] = Float32[0.6, 0.6, 0.6]
+                println(E.selected)
+            end
+        end
+    else
+        for i = eachindex(E.atoms)
+            if A === E.atoms[i]
+                filter!(x -> x !=i, E.selected)
+                A.plot.attributes[:color] = atom_color[A.symbol]
+                A.plot.attributes[:diffuse] = Float32[0.4, 0.4, 0.4]
+                println(E.selected)
+            end
+        end
+    end
+end
+
+function select!(E::Ensamble, B::Bond)
+    if !isselected(E, B)
+        for i = eachindex(E.bonds)
+            if B === E.bonds[i]
+                push!(E.selected, -i)
+                B.plot.attributes[:color] = (:lightgoldenrod1, 0.90)
+                B.plot.attributes[:diffuse] = Float32[0.6, 0.6, 0.6]
+            end
+        end
+    else
+        for i = eachindex(E.bonds)
+            if B === E.bonds[i]
+                filter!(x -> x != -i, E.selected)
+                B.plot.attributes[:color] = atom_color[A.symbol]
+                B.plot.attributes[:diffuse] = Float32[0.4, 0.4, 0.4]
+            end
+        end
+    end
+end
+
+function clear_selection!(E::Ensamble)
+    selected_structs = deepcopy(E.selected)
+    for i in selected_structs
+        if i > 0
+            select!(E, E.atoms[i])
+        else
+            select!(E, E.bonds[-i])
+        end
     end
 end
