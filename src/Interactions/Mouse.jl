@@ -26,10 +26,10 @@ function create_atom_under_mouse(E::Ensamble)
     if length(E.atoms) > 0
         A = closest_atom(E, Point3f0(ori))
         xyz = ori .+ dir * norm(A.center .- ori)
-        Atom(E, "N", xyz...)
+        CreateAtom!(E, "N", xyz...)
     else
         xyz = ori .+ dir * 4
-        Atom(E, "N", xyz...)
+        CreateAtom!(E, "N", xyz...)
     end
 end
 

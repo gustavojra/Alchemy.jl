@@ -28,7 +28,7 @@ mutable struct Ensamble
     selected::Vector{Int}
 end
 
-function Atom(E::Ensamble, S::String, x::T, y::T, z::T) where T <: Number
+function CreateAtom!(E::Ensamble, S::String, x::T, y::T, z::T) where T <: Number
     r = get_atom_radius(S)
     center = Point3f0(x,y,z)
     sphere = Sphere(center, r)
@@ -38,7 +38,7 @@ function Atom(E::Ensamble, S::String, x::T, y::T, z::T) where T <: Number
     return A
 end
 
-function Bond(E::Ensamble, i::Int, j::Int)
+function CreateBond!(E::Ensamble, i::Int, j::Int)
     A1, A2 = E.atoms[i], E.atoms[j]
     xyz = [A1.center]
     uvw = [A2.center - A1.center]
@@ -48,7 +48,7 @@ function Bond(E::Ensamble, i::Int, j::Int)
     return B
 end
 
-function Bond(E::Ensamble)
+function CreateBond!(E::Ensamble)
     A1, A2 = E.atoms[end-1], E.atoms[end]
     xyz = [A1.center]
     uvw = [A2.center - A1.center]
@@ -82,7 +82,7 @@ function read_xyz_to!(E::Ensamble, filename)
             xyz = m.captures[2:end]
             @assert length(xyz) == 3
             xyz = parse.(Float32, xyz)
-            Atom(E, S, xyz...)
+            CreateAtom!(E, S, xyz...)
         end
     end
 end
@@ -95,7 +95,7 @@ function find_bonds!(E::Ensamble)
             r2 = E.atoms[j].center
             d = √sum((r1 .- r2).^2)
             if d < 1.55
-                Bond(E, i, j)
+                CreateBond!(E, i, j)
             end
         end
     end
