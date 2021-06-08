@@ -13,5 +13,6 @@ include("Particles.jl")
 include("Interactions/Mouse.jl")
 include("Interactions/Keyboard.jl")
 include("Run.jl")
+include("Interfaces/Fermi.jl")
 
 end # module

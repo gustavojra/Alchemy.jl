@@ -87,6 +87,19 @@ function read_xyz_to!(E::Ensamble, filename)
     end
 end
 
+function xyz_to!(E::Ensamble, xyz::String)
+    for l = split(xyz, "\n")
+        m = match(XYZ_REGEX, l)
+        if m !== nothing
+            S = String(m.captures[1])
+            xyz = m.captures[2:end]
+            @assert length(xyz) == 3
+            xyz = parse.(Float32, xyz)
+            CreateAtom!(E, S, xyz...)
+        end
+    end
+end
+
 function find_bonds!(E::Ensamble)
 
     for i in eachindex(E.atoms)

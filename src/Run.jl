@@ -3,8 +3,14 @@ function run(filename::String)
     run(E)
 end
 
-function run(E::Ensamble=Ensamble())
-    glfw_window = to_native(display(E.scene))
+function run(E::Ensamble)
+    #glfw_window = to_native(display(E.scene))
+
+    #btn = Button(E.scene, label="Selection")
+
+    #on(btn.clicks) do 
+    #    E.mode = SelectionMode()
+    #end
 
     on(E.scene.events.keyboardbutton) do event
         respond_keyboard_event(E, E.mode, event)
