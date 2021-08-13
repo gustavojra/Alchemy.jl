@@ -28,7 +28,7 @@ function create_atom_under_mouse(E::Ensamble)
         xyz = ori .+ dir * norm(A.center .- ori)
         CreateAtom!(E, "N", xyz...)
     else
-        xyz = ori .+ dir * 4
+        xyz = ori .- dir * 10
         CreateAtom!(E, "N", xyz...)
     end
 end

@@ -21,6 +21,7 @@ struct Bond
 end
 
 mutable struct Ensamble
+    fig::Figure
     scene::Scene
     mode::AbstractMode
     atoms::Vector{Atom}
@@ -59,12 +60,13 @@ function CreateBond!(E::Ensamble)
 end
 
 function Ensamble()
-    s = Scene()
+    fig = Figure()
+    s = fig.scene
     m = SelectionMode()
     atoms=Vector{Atom}()
     bonds=Vector{Bond}()
     selected=Vector{Int}()
-    Ensamble(s, m, atoms, bonds, selected)
+    Ensamble(fig, s, m, atoms, bonds, selected)
 end
 
 function Ensamble(filename::String)
