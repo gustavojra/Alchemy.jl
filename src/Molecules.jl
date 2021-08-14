@@ -1,11 +1,9 @@
-using PeriodicTable # TO BE REMOVED
-
 function plot(atoms::Vector{T}) where T <: Molecules.Atom
 
     out = 0
     for i = eachindex(atoms)
         center = Point3f0(atoms[i].xyz)
-        symbol = elements[atoms[i].Z].symbol # gross
+        symbol = Molecules.symbol(atoms[i])
         r = symbol == "H" ? 0.3 : 0.5
         c = atom_color[symbol]
 

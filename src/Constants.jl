@@ -1,4 +1,3 @@
-const XYZ_REGEX = r"(\w{1,2})\s+?([+-]?\d*\.\d+)\s+?([+-]?\d*\.\d+)\s+?([+-]?\d*\.\d+)"
 const creamery = RGB(214/255, 210/255, 196/255)
 const stegeman = RGB(158/255, 162/255, 162/255)
 
