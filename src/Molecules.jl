@@ -1,5 +1,26 @@
-function plot(atoms::Vector{T}) where T <: Molecules.Atom
+export @alchemy 
 
+macro alchemy(block)
+    mol = repr(block)
+    mol = replace(mol, ";"=>"\n")
+    mol = strip(filter(c->!occursin(c,"{}():"), mol))
+    mol = String(mol)
+    mol = Molecules.parse_string(mol)
+    quote
+        plot($mol)
+    end
+end
+
+macro alchemy(mol::Symbol)
+    return :(Alchemy.plot($mol)) |> esc
+end
+
+macro alchemy(fpath::String)
+    mol = Molecules.parse_file(fpath)
+    return :(Alchemy.plot($mol)) |> esc
+end
+
+function plot(atoms::Vector{T}) where T <: Molecules.Atom
     out = 0
     for i = eachindex(atoms)
         center = Point3f0(atoms[i].xyz)
