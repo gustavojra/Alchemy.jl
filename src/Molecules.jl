@@ -21,20 +21,21 @@ macro alchemy(fpath::String)
 end
 
 function plot(atoms::Vector{T}) where T <: Molecules.Atom
-    out = 0
+    S = Scene()
+    plot!(S, atoms)
+    return S
+end
+
+function plot!(S, atoms::Vector{T}) where T <: Molecules.Atom
     for i = eachindex(atoms)
         center = Point3f0(atoms[i].xyz)
         symbol = Molecules.symbol(atoms[i])
-        r = symbol == "H" ? 0.3 : 0.5
-        c = atom_color[symbol]
+        r = get_atom_radius(symbol)
+        c = get_atom_color(symbol)
 
         sphere = Sphere(center, r)
-        
-        if i == 1
-            out = mesh(sphere, show_axis=false, color=c)
-        else    
-            mesh!(sphere, color=c)
-        end
+
+        mesh!(S, sphere, show_axis=false, color=c)
     end
 
     # Add chemical bonds for close atoms
@@ -48,11 +49,11 @@ function plot(atoms::Vector{T}) where T <: Molecules.Atom
             if d < 1.55
                 xyz = [Point3f0(A1.xyz)]
                 uvw = [Point3f0(A2.xyz - A1.xyz)]
-                arrows!(xyz, uvw, linewidth=0.1, arrowsize=0.0, linecolor=stegeman)
+                arrows!(S, xyz, uvw, linewidth=0.1, arrowsize=0.0, linecolor=stegeman)
             end
         end
     end
 
-    return out
+    return S
 end
 

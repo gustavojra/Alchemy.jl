@@ -1,11 +1,21 @@
 const creamery = RGB(214/255, 210/255, 196/255)
 const stegeman = RGB(158/255, 162/255, 162/255)
 
+H_radius = Node{Float32}(0.3) 
+
 function get_atom_radius(S::String)
     if S == "H"
-        return 0.3
+        return to_value(H_radius)
     else
         return 0.5
+    end
+end
+
+function get_atom_color(S::String)
+    if haskey(atom_color, S)
+        return atom_color[S]
+    else
+        throw(ArgumentError("Color not defined for atom $S"))
     end
 end
 

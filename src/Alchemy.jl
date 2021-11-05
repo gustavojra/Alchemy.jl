@@ -8,5 +8,6 @@ using Colors
 
 include("Constants.jl")
 include("Molecules.jl")
+include("Interfaces/Fermi.jl")
 
 end # module
