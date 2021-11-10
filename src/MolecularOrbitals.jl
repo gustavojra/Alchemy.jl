@@ -1,3 +1,5 @@
+using LinearAlgebra
+using MKL
 import Fermi.Orbitals: AbstractRestrictedOrbitals
 
 function orbital_eval(orb::AbstractRestrictedOrbitals, bset::BasisSet, x, y, z, n)
@@ -35,7 +37,9 @@ function isoplot(orb::AbstractRestrictedOrbitals, min, max, N)
     fig = Figure(resolution=(900,800))
     lscene = LScene(fig[1,1], tellheight=false, height=700, width=600)
 
-    plot!(lscene, orb.molecule.atoms)
+    # Plot atoms
+    atoms = orb.molecule.atoms
+    plot!(lscene, atoms)
 
     gui_grid = fig[1,2] = GridLayout(width = 250, tellheigth=false)
 
@@ -47,7 +51,7 @@ function isoplot(orb::AbstractRestrictedOrbitals, min, max, N)
     ls = labelslider!(fig, "Isovalue", 0:0.01:0.5)#, tellheight = false)
     gui_grid[2,1] = ls.layout
 
-    # Toggles
+    # Toggles: Show axis
     togglegrid = gui_grid[3,1] = GridLayout(tellwidth=false)
     ax_t = Toggle(togglegrid[1,1])
     Label(togglegrid[1,2], "Show axis")
@@ -68,19 +72,77 @@ function isoplot(orb::AbstractRestrictedOrbitals, min, max, N)
     set_close_to!(ls.slider, 0.48)
     menu.selection[] = 1
 
-    r = LinRange(min, max, N)
-
+    # Positive and negative isovalues conected as nodes
     iv = ls.slider.value
     negiv = lift(iv) do x
         -x
     end
 
-    bset = BasisSet(orb.basis, orb.molecule.atoms)
-    r = LinRange(min, max, N)
-    wf = lift(menu.selection) do n
-        [orbital_eval(orb, bset, x, y, z, Integer(n[])) for x = r, y = r, z = r]
+    # Get basis set info
+    bset = BasisSet(orb.basis, atoms)
+    nbas = bset.nbas
+
+    # Allocate array for basis set grids
+    χ = zeros(Float32, N, N, N, size(orb.C,1))
+    Cμi = Float32.(orb.C)
+
+    bas_per_atom = Int[]
+    for a in eachindex(atoms)
+        basis_on_atom_a = bset[a]
+        nbf = 0
+        for b in basis_on_atom_a
+            nbf += 2*b.l + 1
+        end
+        push!(bas_per_atom, nbf)
     end
 
+    println(bas_per_atom)
+    println(nbas)
+    @assert sum(bas_per_atom) == nbas
+
+    offset = [sum(bas_per_atom[1:(a-1)]) for a in eachindex(atoms)]
+
+    # Compute χ(x,y,z,μ) rank-4 tensor: x,y,z are the cartesian coordinates
+    # μ is the basis function index. Thus, this tensor stores the value of all 
+    # basis functions over the whole grid
+    r = LinRange(min, max, N)
+    Threads.@threads for ix in 1:N
+        x = r[ix]
+        @inbounds for iy in 1:N, iz in 1:N
+        y, z = r[iy], r[iz]
+        for a in eachindex(atoms)
+            basis_on_atom_a = bset[a]
+            x0, y0, z0 = atoms[a].xyz
+            μ = offset[a] + 1
+            for b in eachindex(basis_on_atom_a)
+                bf = basis_on_atom_a[b]
+                if bf.l == 1
+                    ml_vals = [1, -1, 0]
+                    #ml_vals = [1, 0, -1]
+                else
+                    ml_vals = collect(-bf.l:1:bf.l)
+                end
+                for ml in ml_vals
+                    χ[ix,iy,iz,μ] = orbital_eval(bf, x,y,z, ml, x0=x0, y0=y0, z0=z0)
+                    μ += 1
+                end
+            end
+        end
+        end
+    end
+
+    # Perform the AO -> MO transformation as a matrix multiplication
+    # C(x,y,z;i) = χ(x,y,z;μ) * C(μ;i) 
+    χ = reshape(χ, (N^3, nbas))
+    Cmo = reshape(χ * Cμi, (N, N, N, nbas))
+
+    # The menu for orbital selection simply slice
+    # the full tensor
+    wf = lift(menu.selection) do n
+        Cmo[:,:,:,n]
+    end
+
+    # Plot isosurfaces
     volume!(r, r, r, wf, algorithm = :iso, isorange = 0.01, tellheight=false, 
             isovalue =  iv, show_axis=true, colormap = colormap("reds"), colorrange = (0, 0.5))
     volume!(r, r, r, wf, algorithm = :iso, isorange = 0.01, tellheight=false, 
