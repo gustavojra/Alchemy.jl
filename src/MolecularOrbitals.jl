@@ -16,7 +16,7 @@ function orbital_eval(orb::AbstractRestrictedOrbitals, bset::BasisSet, x, y, z, 
         for b in eachindex(basis_on_atom_a)
             bf = basis_on_atom_a[b]
             if bf.l == 1
-                ml_vals = [1, -1, 0]
+                ml_vals = [1, 0, -1]
             else
                 ml_vals = collect(-bf.l:1:bf.l)
             end
@@ -116,12 +116,13 @@ function isoplot(orb::AbstractRestrictedOrbitals, min, max, N)
             μ = offset[a] + 1
             for b in eachindex(basis_on_atom_a)
                 bf = basis_on_atom_a[b]
+
                 if bf.l == 1
                     ml_vals = [1, -1, 0]
-                    #ml_vals = [1, 0, -1]
                 else
                     ml_vals = collect(-bf.l:1:bf.l)
                 end
+
                 for ml in ml_vals
                     χ[ix,iy,iz,μ] = orbital_eval(bf, x,y,z, ml, x0=x0, y0=y0, z0=z0)
                     μ += 1
@@ -133,20 +134,33 @@ function isoplot(orb::AbstractRestrictedOrbitals, min, max, N)
 
     # Perform the AO -> MO transformation as a matrix multiplication
     # C(x,y,z;i) = χ(x,y,z;μ) * C(μ;i) 
+    #Cmo = similar(χ)
+    #Cmo .= 0
+    #for ix in 1:N
+    #    for iy in 1:N
+    #        for iz in 1:N
+    #            for i in 1:size(orb.C,1)
+    #                for μ = 1:size(orb.C,1)
+    #                    Cmo[ix,iy,iz,i] += χ[ix,iy,iz,μ]*Cμi[μ,i]
+    #                end
+    #            end
+    #        end
+    #    end
+    #end
     χ = reshape(χ, (N^3, nbas))
     Cmo = reshape(χ * Cμi, (N, N, N, nbas))
 
     # The menu for orbital selection simply slice
     # the full tensor
     wf = lift(menu.selection) do n
-        Cmo[:,:,:,n]
+        Cmo[:,:,:,n].^2
     end
 
     # Plot isosurfaces
     volume!(r, r, r, wf, algorithm = :iso, isorange = 0.01, tellheight=false, 
             isovalue =  iv, show_axis=true, colormap = colormap("reds"), colorrange = (0, 0.5))
-    volume!(r, r, r, wf, algorithm = :iso, isorange = 0.01, tellheight=false, 
-            isovalue = negiv, show_axis=true, colormap = colormap("blues"), colorrange = (0, -0.5))
+    #volume!(r, r, r, wf, algorithm = :iso, isorange = 0.01, tellheight=false, 
+    #        isovalue = negiv, show_axis=true, colormap = colormap("blues"), colorrange = (0, -0.5))
 
     return fig
 end
